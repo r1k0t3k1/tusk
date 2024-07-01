@@ -1,70 +1,45 @@
 use core::panic;
-use core::ffi::c_void;
-use std::ffi::CString;
 
-use std::thread::sleep;
-use std::time::Duration;
+use std::fs::File;
+use std::io::{self, Read};
 
 use clap::Parser;
 
-use windows::core::{h, s, w, PCWSTR};
-use windows::Win32::System::Antimalware::{AmsiCloseSession, AmsiInitialize, AmsiOpenSession, AmsiScanBuffer, AmsiScanString, AmsiUninitialize, HAMSISESSION};
-
-#[derive(Debug, Parser)]
-#[clap(
-    name = env!("CARGO_PKG_NAME"),
-    version = env!("CARGO_PKG_VERSION"),
-    author = env!("CARGO_PKG_AUTHORS"),
-    about = env!("CARGO_PKG_DESCRIPTION"),
-    arg_required_else_help = true,
-)]
-struct Cli {
-    #[clap(long = "act", value_name = "ACT", default_value = "1")]
-    act: String,
-    #[clap(short = 'f', long = "filename", value_name = "FILENAME", required = true)]
-    filename: String,
-}
-
-//#[link(name = "amsi")]
-//#[no_mangle]
-//extern "stdcall" {
-//	fn AmsiScanBuffer(
-//		amsi_context: *const c_void,
-//		buf: *const c_void,
-//		length: u32,
-//		content_name: *const u16,
-//		amsi_session: *mut c_void,
-//		amsi_result: *mut c_void	
-//	) ->  i32;
-//}
+mod command;
+mod scanner;
+mod processor;
 
 fn main() {
-    let cli = Cli::parse();
+    let cli = command::Command::parse();
 
-    let hamsi_ctx = match unsafe { AmsiInitialize(w!(r"PowerShell_C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe_10.0.19041.3")) } {
-        Ok(ctx) => ctx,
-        Err(e) => panic!("Initialize failed: {}", e),
+    if cli.act < 1 || cli.act > 4 {
+        eprintln!("\"act\" must be greater than or equal to 1 and less than or equal to 4.");
+        return;
+    } 
+
+    let script: String = if cli.filename.is_some() {
+        let mut f = File::open(cli.filename.unwrap()).expect("file not found.");
+        let mut buf = String::new();
+        f.read_to_string(&mut buf).expect("something went wrong reading the file.");
+        buf
+    } else if cli.command.is_some() {
+        cli.command.unwrap()
+    } else if cli.stdin {
+        io::stdin().lines().fold("".to_string(), |acc, line| {
+            acc + &line.unwrap() + "\n"
+        })
+    } else {
+        panic!("something went wrong.");
     };
 
-    let amsi_session = match unsafe { AmsiOpenSession(hamsi_ctx) } {
-        Ok(session) => session,
-        Err(e) => {
-            unsafe { AmsiUninitialize(hamsi_ctx) };
-            panic!("OpenSession failed: {}", e);
-        }
-    };
+    let scanner = scanner::Scanner::new();
 
-    //let script = h!("Invoke-Mimikatz");
-    let script = s!("AMSIScanBuffer");
-    let script_ptr= script.as_ptr() as *const c_void;
-    
-    for i in 1..=unsafe { script.as_bytes().len() } {
-        let amsi_result = unsafe { AmsiScanBuffer(hamsi_ctx, script_ptr, i as u32, w!("sample"), amsi_session) };
-        println!("{:?}", amsi_result.unwrap());
+    match cli.act {
+        1 => processor::process_entire_script(&scanner, &script),
+        2 => processor::process_script_per_chunk(&scanner, &script, 15),
+        3 => processor::process_script_per_line(&scanner, &script),
+        4 => processor::process(&scanner, &script, cli.chunk_size),
+        _ => (),
     }
 
-    unsafe {
-        AmsiCloseSession(hamsi_ctx, amsi_session);
-        AmsiUninitialize(hamsi_ctx);
-    }
 }

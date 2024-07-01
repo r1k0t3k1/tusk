@@ -9,6 +9,8 @@ authors = ["rikoteki"]
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
+colored = "2"
+windows-result = "0.1.2"
 
 [dependencies.windows]
 version = "0.54.0"
