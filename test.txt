@@ -1,4 +1,1 @@
 amsiscanbuffer
-test string
-sample string
-invoke-mimikatz
