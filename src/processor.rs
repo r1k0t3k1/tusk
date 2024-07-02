@@ -25,9 +25,11 @@ pub fn process(scanner: &scanner::Scanner, script: &String, chunk_size: usize) {
         .collect::<Result<Vec<&str>, _>>()
         .unwrap();
 
-    for i in 0..script_chunks.len() - 1 {
+    for i in 0..script_chunks.len() {
         let mut script = String::from(script_chunks[i]);
-        script.push_str(script_chunks[i + 1]);
+        if i <= script_chunks.len() - 2 {
+            script.push_str(script_chunks[i + 1]);
+        }
         let Ok(scan_result) = scanner.scan(&script, script.len()) else {
             eprintln!("[×] AMSI scan failed.");
             return;
@@ -35,13 +37,14 @@ pub fn process(scanner: &scanner::Scanner, script: &String, chunk_size: usize) {
 
         if scan_result != AMSI_RESULT_DETECTED { continue; }
 
-        let mut index = script.len();
+        //let mut index = script.len();
+        let mut index = 0;
 
-        while index > 0 {
-            if let Some(end) = search_detection_end(&scanner, &script[..index].to_string()) {
-               if let Some(start) = search_detection_start(&scanner, &script[..end].to_string()) {
-                   println!("{}", script[start..end].red());
-                   index = start;
+        while index < script.len() {
+            if let Some(end) = search_detection_end(&scanner, &script[index..].to_string()) {
+               if let Some(start) = search_detection_start(&scanner, &script[index..index+end].to_string()) {
+                   println!("{}~{}:{}", start, end, script[index+start..index+end].red());
+                   index = index+end;
                } else { return; };
             } else { return; };
         }
@@ -56,7 +59,7 @@ fn search_detection_end(scanner: &scanner::Scanner, script: &String) -> Option<u
     };
 
     if scan_result != AMSI_RESULT_DETECTED  { return None; }
-
+    
     for i in (0..script.len()).step_by(5).rev() {
         let Ok(scan_result) = scanner.scan(&script[..i].to_string(), script[..i].len()) else {
             eprintln!("[×] AMSI scan failed.");
@@ -86,9 +89,9 @@ fn search_detection_start(scanner: &scanner::Scanner, script: &String) -> Option
 
     if scan_result != AMSI_RESULT_DETECTED  { return None; }
     
-    let sig_length = if script.len() < 20 { script.len() } else { 20 };
+    //let sig_length = script.len() < 20 { script.len() } else { script.len() };
 
-    for i in 1..=sig_length {
+    for i in 1..=script.len() {
         let start_index = script.len() - i;
 
         let Ok(scan_result) = scanner.scan(&script[start_index..].to_string(), i) else {
@@ -115,6 +118,7 @@ pub fn process_entire_script(scanner: &scanner::Scanner, script: &String) {
 
 pub fn process_script_per_line(scanner: &scanner::Scanner, script: &String) {
     for (i, l) in script.lines().enumerate() {
+        if l.len() == 0 { continue; }
         let Ok(result) = scanner.scan(&l.to_string(), l.len()) else {
             eprintln!("[×] AMSI scan failed.");
             return;

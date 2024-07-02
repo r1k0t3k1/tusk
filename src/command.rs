@@ -26,6 +26,6 @@ pub struct Command {
     pub command: Option<String>,
     #[clap(short = 's', long = "stdin")]
     pub stdin: bool,
-    #[clap( long = "chunksize", value_name = "CHUNKSIZE", default_value_t = 15)]
+    #[clap( long = "chunksize", value_name = "CHUNKSIZE", default_value_t = 2048)]
     pub chunk_size: usize
 }

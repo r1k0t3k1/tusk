@@ -36,7 +36,7 @@ fn main() {
 
     match cli.act {
         1 => processor::process_entire_script(&scanner, &script),
-        2 => processor::process_script_per_chunk(&scanner, &script, 20),
+        2 => processor::process_script_per_chunk(&scanner, &script, 2048),
         3 => processor::process_script_per_line(&scanner, &script),
         4 => processor::process(&scanner, &script, cli.chunk_size),
         _ => (),

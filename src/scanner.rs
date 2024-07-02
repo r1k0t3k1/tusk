@@ -36,7 +36,7 @@ impl Scanner {
         
         let scanner = Scanner { amsi_context, amsi_session };
 
-        let Ok(test_result) = scanner.scan(&String::from("Invoke-Mimikatz"), 15) else {
+        let Ok(test_result) = scanner.scan(&String::from("AmsiScanBuffer"), 14) else {
             panic!("[×] AMSI scan failed.");
         };
 
